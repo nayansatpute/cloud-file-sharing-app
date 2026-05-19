@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cloud File Sharing App</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2d1b69 0%, #11998e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 24px;
+            padding: 40px;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        .title {
+            color: white;
+            font-size: 22px;
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .title span {
+            font-size: 28px;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .section {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+        }
+
+        .section h3 {
+            color: rgba(255,255,255,0.9);
+            font-size: 14px;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 16px;
+        }
+
+        input[type="file"],
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.15);
+            color: white;
+            font-family: 'Poppins', sans-serif;
+            font-size: 14px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        input[type="text"]::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        input[type="file"]::-webkit-file-upload-button {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 13px;
+            border: none;
+            border-radius: 10px;
+            font-family: 'Poppins', sans-serif;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .btn-upload {
+            background: linear-gradient(135deg, #56ab2f, #a8e063);
+            color: white;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #2193b0, #6dd5ed);
+            color: white;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 14px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            color: rgba(255,255,255,0.8);
+            transition: all 0.3s ease;
+        }
+
+        .status.success {
+            background: rgba(86, 171, 47, 0.3);
+            color: #a8e063;
+        }
+
+        .status.error {
+            background: rgba(255, 80, 80, 0.3);
+            color: #ffaaaa;
+        }
+
+        .status.loading {
+            background: rgba(33, 147, 176, 0.3);
+            color: #6dd5ed;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="title">
+            <span>☁️</span>
+            Cloud File Sharing App
+        </div>
+
+        <!-- UPLOAD SECTION -->
+        <div class="section">
+            <h3>📤 Upload File</h3>
+            <input type="file" id="fileInput">
+            <button class="btn btn-upload" onclick="uploadFile()">Upload to Cloud</button>
+        </div>
+
+        <!-- DOWNLOAD SECTION -->
+        <div class="section">
+            <h3>📥 Download File</h3>
+            <input type="text" id="downloadFileName" placeholder="Enter file name e.g. notes.pdf">
+            <button class="btn btn-download" onclick="downloadFile()">Download from Cloud</button>
+        </div>
+
+        <div class="status" id="status">Ready to upload or download</div>
+    </div>
+
+    <script>
+        // Your Lambda Function URLs
+        const UPLOAD_LAMBDA_URL = 'https://chdtoblkkiikagpez23lyvsike0ldaof.lambda-url.ap-south-1.on.aws/';
+        const DOWNLOAD_LAMBDA_URL = 'https://gygqhc72jgiww7s22hus32wheq0nicqu.lambda-url.ap-south-1.on.aws/';
+
+        // Updates the status bar at the bottom of the card
+        function setStatus(message, type = '') {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status ' + type;
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const file = fileInput.files[0];
+
+            // Step 1: Make sure the user selected a file
+            if (!file) {
+                setStatus('⚠️ Please select a file first.', 'error');
+                return;
+            }
+
+            setStatus('⏳ Getting secure upload link...', 'loading');
+
+            try {
+                // Step 2: Call Lambda to get a pre-signed PUT URL for this file
+                const response = await fetch(`${UPLOAD_LAMBDA_URL}?fileName=${encodeURIComponent(file.name)}`);
+                const data = await response.json();
+
+                if (!data.uploadUrl) throw new Error('No upload URL received');
+
+                setStatus('⬆️ Uploading file to cloud...', 'loading');
+
+                // Step 3: Upload file DIRECTLY to S3 using the pre-signed URL
+                // Lambda is no longer involved here — this goes straight to S3!
+                const uploadResponse = await fetch(data.uploadUrl, {
+                    method: 'PUT',
+                    body: file,
+                    headers: {
+                        'Content-Type': file.type || 'application/octet-stream'
+                    }
+                });
+
+                if (uploadResponse.ok) {
+                    setStatus(`✅ "${file.name}" uploaded successfully!`, 'success');
+                    fileInput.value = '';
+                } else {
+                    throw new Error('Upload to S3 failed');
+                }
+
+            } catch (error) {
+                setStatus('❌ Upload failed: ' + error.message, 'error');
+            }
+        }
+
+        async function downloadFile() {
+            const fileName = document.getElementById('downloadFileName').value.trim();
+
+            // Step 1: Make sure the user typed a file name
+            if (!fileName) {
+                setStatus('⚠️ Please enter a file name to download.', 'error');
+                return;
+            }
+
+            setStatus('⏳ Getting secure download link...', 'loading');
+
+            try {
+                // Step 2: Call Lambda to get a pre-signed GET URL for this file
+                const response = await fetch(`${DOWNLOAD_LAMBDA_URL}?fileName=${encodeURIComponent(fileName)}`);
+                const data = await response.json();
+
+                if (!data.downloadUrl) throw new Error('No download URL received');
+
+                setStatus('⬇️ Downloading file...', 'loading');
+
+                // Step 3: Fetch the actual file from S3 using the pre-signed URL
+                const fileResponse = await fetch(data.downloadUrl);
+                if (!fileResponse.ok) throw new Error('File not found in cloud storage');
+
+                // Step 4: Convert to Blob and trigger browser download
+                const blob = await fileResponse.blob();
+                const url = URL.createObjectURL(blob);  // Create a temporary local URL
+                const a = document.createElement('a'); // Create invisible <a> tag
+                a.href = url;
+                a.download = fileName;                  // Set download filename
+                document.body.appendChild(a);
+                a.click();                              // Trigger the download
+                document.body.removeChild(a);           // Clean up
+                URL.revokeObjectURL(url);               // Free memory
+
+                setStatus(`✅ "${fileName}" downloaded successfully!`, 'success');
+
+            } catch (error) {
+                setStatus('❌ Download failed: ' + error.message, 'error');
+            }
+        }
+    </script>
+</body>
+</html>
